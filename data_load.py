@@ -3,7 +3,7 @@ import os
 import wfdb
 import pandas as pd
 
-#Using the same tmethod of reading the RECORDS file for the names:
+#Using the same method of reading the RECORDS file for the names:
 def load_records_names(record_file_path):
 
     with open(record_file_path, 'r') as file:
