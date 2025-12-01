@@ -136,6 +136,7 @@ for r_idx in r_indices:
                 fontweight='bold',
                 bbox=dict(boxstyle="circle,pad=0.3", fc="blue", ec="darkblue", alpha=0.8)
             )
+#AJUSTAR AQUI PARA VERIFICAÇÃO DE TEMPO E AMPLITUDE
 
 # Detectar picos/vales manuais e adicionar P/V
 def detectar_extremos_manualmente(sinal):
