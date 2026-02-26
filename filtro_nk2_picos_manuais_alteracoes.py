@@ -16,8 +16,8 @@ base_path = os.path.dirname(os.path.abspath(__file__))
 
 # Constrói os caminhos absolutos para os arquivos CSV
 # Ajuste "signal_tables" se o arquivo de anotação também estiver lá dentro
-record_path_abs = os.path.join(base_path, "signal_tables", "100_record.csv")
-annotation_path_abs = os.path.join(base_path, "signal_tables", "100_annotation.csv") # Assumindo que está na mesma pasta do script
+record_path_abs = os.path.join(base_path, "signal_tables", "103_record.csv")
+annotation_path_abs = os.path.join(base_path, "signal_tables", "103_annotation.csv") # Assumindo que está na mesma pasta do script
 
 print(f"Diretório base do script: {base_path}")
 print(f"Procurando registro em: {record_path_abs}")

@@ -11,7 +11,6 @@ def load_records_names(record_file_path):
 
     return record_name
 
-
 #creating the dataframes:
 def create_record_df(signal_name, file_path ='./database'):
     signal, channels = wfdb.rdsamp(f'{file_path}/{signal_name}')
