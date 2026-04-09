@@ -1,0 +1,38 @@
+\babel@toc {brazil}{}\relax 
+\contentsline {section}{\numberline {1}Prop\'osito do manuscrito}{3}{section.1}%
+\contentsline {section}{\numberline {2}Problema de pesquisa}{3}{section.2}%
+\contentsline {section}{\numberline {3}Base de dados}{3}{section.3}%
+\contentsline {subsection}{\numberline {3.1}MIT-BIH Arrhythmia Database}{3}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Estrutura dos dados no reposit\'orio}{4}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Pergunta metodol\'ogica central}{4}{section.4}%
+\contentsline {section}{\numberline {5}Arquitetura do pipeline}{4}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Organiza\c {c}\~ao geral}{4}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Pontos de entrada}{5}{subsection.5.2}%
+\contentsline {section}{\numberline {6}Metodologia implementada}{5}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Ingest\~ao e tabulariza\c {c}\~ao}{5}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Pr\'e-processamento do sinal}{5}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Detec\c {c}\~ao de picos R}{6}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Constru\c {c}\~ao do dataset por batimento}{6}{subsection.6.4}%
+\contentsline {subsection}{\numberline {6.5}Mapeamento de classes}{6}{subsection.6.5}%
+\contentsline {subsection}{\numberline {6.6}Descritores extra\'idos}{7}{subsection.6.6}%
+\contentsline {subsubsection}{\numberline {6.6.1}Descritores morfol\'ogicos}{7}{subsubsection.6.6.1}%
+\contentsline {subsubsection}{\numberline {6.6.2}Descritores de din\^amica simb\'olica}{7}{subsubsection.6.6.2}%
+\contentsline {subsubsection}{\numberline {6.6.3}Descritores RR}{7}{subsubsection.6.6.3}%
+\contentsline {subsection}{\numberline {6.7}Modelo baseline atual}{8}{subsection.6.7}%
+\contentsline {section}{\numberline {7}Protocolo de avalia\c {c}\~ao}{8}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Split por registro}{8}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}M\'etricas de classifica\c {c}\~ao}{8}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}M\'etricas para detec\c {c}\~ao de picos}{9}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Estado experimental atual}{9}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Resultados do baseline cl\'assico}{9}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Resultados da avalia\c {c}\~ao de picos R}{9}{subsection.8.2}%
+\contentsline {section}{\numberline {9}Interpreta\c {c}\~ao metodol\'ogica do estado atual}{10}{section.9}%
+\contentsline {section}{\numberline {10}Limita\c {c}\~oes atuais}{11}{section.10}%
+\contentsline {section}{\numberline {11}Como este texto pode evoluir para artigo}{11}{section.11}%
+\contentsline {section}{\numberline {12}Pr\'oximos passos recomendados}{11}{section.12}%
+\contentsline {section}{\numberline {13}Comandos de reprodu\c {c}\~ao}{12}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Ambiente}{12}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Pipeline principal}{12}{subsection.13.2}%
+\contentsline {subsection}{\numberline {13.3}Avalia\c {c}\~ao da detec\c {c}\~ao de picos}{12}{subsection.13.3}%
+\contentsline {subsection}{\numberline {13.4}Testes}{12}{subsection.13.4}%
+\contentsline {subsection}{\numberline {13.5}Compila\c {c}\~ao deste documento}{12}{subsection.13.5}%

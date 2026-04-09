@@ -1,0 +1,437 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!50!black,
+    urlcolor=blue!50!black,
+    citecolor=blue!50!black
+}
+
+\title{Base T\'ecnica do Projeto\\Classifica\c{c}\~ao de Sinais de ECG com MIT-BIH}
+\author{Tiago Leite Pereira}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Este documento consolida a base t\'ecnica do projeto de classifica\c{c}\~ao de sinais de eletrocardiograma (ECG) desenvolvido sobre a MIT-BIH Arrhythmia Database. O objetivo do texto n\~ao \'e apenas registrar tarefas executadas, mas explicitar a formula\c{c}\~ao do problema, as decis\~oes metodol\'ogicas j\'a implementadas, o fluxo de dados, as representa\c{c}\~oes extra\'idas do sinal e o protocolo de avalia\c{c}\~ao usado at\'e o momento. O documento foi estruturado como base de manuscrito cient\'ifico, de modo que possa evoluir para introdu\c{c}\~ao, metodologia, resultados e discuss\~ao de um artigo completo.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Prop\'osito do manuscrito}
+Este texto serve como base t\'ecnica para um futuro artigo cient\'ifico. Por isso, ele foi organizado para responder de forma objetiva quatro perguntas centrais:
+
+\begin{enumerate}[label=\arabic*.]
+    \item qual problema est\'a sendo atacado;
+    \item quais dados e representa\c{c}\~oes est\~ao sendo usados;
+    \item como o pipeline atualmente implementado transforma sinal bruto em decis\~ao de classe;
+    \item quais evid\^encias experimentais j\'a existem e quais lacunas permanecem abertas.
+\end{enumerate}
+
+Em vez de funcionar apenas como relat\'orio operacional, o documento busca capturar a l\'ogica cient\'ifica do projeto: hip\'oteses impl\'icitas, escolhas de modelagem, protocolo de valida\c{c}\~ao e riscos metodol\'ogicos.
+
+\section{Problema de pesquisa}
+O problema geral consiste em classificar batimentos card\'iacos a partir de sinais de ECG, tomando como base registros anotados da MIT-BIH Arrhythmia Database. O reposit\'orio foi organizado para sustentar duas linhas metodol\'ogicas complementares:
+
+\begin{itemize}
+    \item uma linha baseada em din\^amica simb\'olica e descritores n\~ao lineares;
+    \item uma linha baseada em modelos temporais orientados por dados, com \^enfase inicial em LSTM e extens\~oes do tipo CNN/LSTM.
+\end{itemize}
+
+No estado atual do projeto, a trilha mais madura \'e o baseline cl\'assico por batimento, apoiado por atributos morfol\'ogicos, atributos simb\'olicos e descritores de intervalo RR.
+
+\section{Base de dados}
+\subsection{MIT-BIH Arrhythmia Database}
+O conjunto de dados de refer\^encia utilizado no projeto \'e a MIT-BIH Arrhythmia Database. No reposit\'orio, os dados brutos est\~ao organizados em \texttt{data/raw/mit\_bih/}. Cada registro cont\'em pelo menos:
+
+\begin{itemize}
+    \item o tra\c{c}ado do ECG em um ou mais canais;
+    \item metadados do registro;
+    \item anota\c{c}\~oes de eventos card\'iacos, incluindo a localiza\c{c}\~ao amostral dos batimentos.
+\end{itemize}
+
+O pipeline usa taxa de amostragem de 360 Hz, conforme parametriza\c{c}\~ao atual do projeto.
+
+\subsection{Estrutura dos dados no reposit\'orio}
+Os dados s\~ao organizados em tr\^es camadas:
+
+\begin{longtable}{p{0.28\textwidth} p{0.64\textwidth}}
+\toprule
+\textbf{Camada} & \textbf{Fun\c{c}\~ao} \\
+\midrule
+\texttt{data/raw/mit\_bih/} & arquivos originais da base MIT-BIH em formato WFDB; \\
+\texttt{data/interim/signal\_tables/} & vers\~oes tabulares em CSV dos sinais e das anota\c{c}\~oes; \\
+\texttt{data/processed/} & sinais processados, features agregadas e datasets derivados. \\
+\bottomrule
+\end{longtable}
+
+Essa separa\c{c}\~ao favorece reprodutibilidade, inspe\c{c}\~ao intermedi\'aria e reaproveitamento das etapas do pipeline.
+
+\section{Pergunta metodol\'ogica central}
+No n\'ucleo do projeto, a seguinte pergunta guia a implementa\c{c}\~ao atual:
+
+\begin{quote}
+Como representar batimentos de ECG de forma suficientemente informativa para distinguir padr\~oes fisiol\'ogicos e arritmias, preservando reprodutibilidade experimental e capacidade de compara\c{c}\~ao entre abordagens cl\'assicas e modelos temporais?
+\end{quote}
+
+O pipeline hoje implementado responde a essa pergunta decompondo o problema em quatro etapas:
+
+\begin{enumerate}[label=\arabic*.]
+    \item prepara\c{c}\~ao e limpeza do sinal;
+    \item localiza\c{c}\~ao de batimentos ou uso das anota\c{c}\~oes como refer\^encia estrutural;
+    \item extra\c{c}\~ao de descritores por batimento;
+    \item treinamento e avalia\c{c}\~ao de classificadores.
+\end{enumerate}
+
+\section{Arquitetura do pipeline}
+\subsection{Organiza\c{c}\~ao geral}
+O pacote principal do projeto est\'a em \texttt{src/ecg\_classification/} e foi dividido em seis blocos:
+
+\begin{itemize}
+    \item \texttt{io}: leitura de sinais, anota\c{c}\~oes e exporta\c{c}\~ao para CSV;
+    \item \texttt{preprocessing}: limpeza, normaliza\c{c}\~ao e corre\c{c}\~ao de baseline;
+    \item \texttt{segmentation}: detec\c{c}\~ao de picos R e utilidades de segmenta\c{c}\~ao;
+    \item \texttt{features}: constru\c{c}\~ao de descritores simb\'olicos, morfol\'ogicos e RR;
+    \item \texttt{models}: modelos cl\'assicos e scaffolds para redes neurais;
+    \item \texttt{evaluation}: m\'etricas, splits por registro e avalia\c{c}\~ao de detec\c{c}\~ao de picos.
+\end{itemize}
+
+\subsection{Pontos de entrada}
+Os scripts principais atualmente dispon\'iveis s\~ao:
+
+\begin{verbatim}
+python scripts/make_dataset.py
+python scripts/preprocess_mitbih.py
+python scripts/extract_symbolic_features.py
+python scripts/train_classical_ml.py
+python scripts/evaluate_rpeak_detection.py
+\end{verbatim}
+
+O projeto tamb\'em possui um despachante de execu\c{c}\~ao:
+
+\begin{verbatim}
+python scripts/run_experiment.py make_dataset
+python scripts/run_experiment.py preprocess
+python scripts/run_experiment.py symbolic_features
+python scripts/run_experiment.py train_classical_ml
+python scripts/run_experiment.py train_lstm
+\end{verbatim}
+
+\section{Metodologia implementada}
+\subsection{Ingest\~ao e tabulariza\c{c}\~ao}
+A etapa de ingest\~ao transforma os registros WFDB em tabelas CSV. Para cada registro, o projeto exporta:
+
+\begin{itemize}
+    \item um arquivo \texttt{\_record.csv} com os canais do ECG;
+    \item um arquivo \texttt{\_annotation.csv} com as colunas de amostra e s\'imbolo anotado.
+\end{itemize}
+
+Essa decis\~ao reduz o acoplamento com o formato nativo do WFDB durante as etapas de explora\c{c}\~ao, depura\c{c}\~ao e engenharia de atributos.
+
+\subsection{Pr\'e-processamento do sinal}
+O pr\'e-processamento atual segue uma sequ\^encia simples e reproduz\'ivel:
+
+\begin{enumerate}[label=\arabic*.]
+    \item sele\c{c}\~ao do canal principal do registro;
+    \item limpeza do ECG com \texttt{nk.ecg\_clean} do NeuroKit2;
+    \item remo\c{c}\~ao de baseline wander por decomposi\c{c}\~ao wavelet;
+    \item salvamento das vers\~oes \texttt{raw}, \texttt{cleaned}, \texttt{baseline} e \texttt{baseline\_corrected}.
+\end{enumerate}
+
+Em termos metodol\'ogicos, essa etapa busca reduzir contamina\c{c}\~ao de baixa frequ\^encia e tornar a representa\c{c}\~ao dos batimentos mais est\'avel para segmenta\c{c}\~ao e extra\c{c}\~ao de features.
+
+\subsection{Detec\c{c}\~ao de picos R}
+A detec\c{c}\~ao de picos R atualmente \'e implementada com \texttt{nk.ecg\_peaks} do NeuroKit2. O projeto trata essa etapa como componente metodol\'ogico cr\'itico por dois motivos:
+
+\begin{itemize}
+    \item erros na localiza\c{c}\~ao do pico deslocam a janela do batimento e degradam as features extra\'idas;
+    \item a qualidade da detec\c{c}\~ao afeta diretamente qualquer pipeline que dependa de janelas centradas no batimento.
+\end{itemize}
+
+Por isso, foi adicionada uma rotina espec\'ifica de avalia\c{c}\~ao da detec\c{c}\~ao, comparando picos detectados com as anota\c{c}\~oes de refer\^encia da base.
+
+\subsection{Constru\c{c}\~ao do dataset por batimento}
+O dataset supervisionado por batimento \'e gerado a partir das anota\c{c}\~oes da base. Para cada batimento v\'alido:
+
+\begin{enumerate}[label=\arabic*.]
+    \item identifica-se a amostra anotada como pico de refer\^encia;
+    \item extrai-se uma janela com 100 amostras \`a esquerda e 150 \`a direita;
+    \item descartam-se casos que ultrapassem as bordas do sinal;
+    \item associa-se ao batimento seu r\'otulo e seus descritores.
+\end{enumerate}
+
+Essa janela corresponde a 250 amostras por batimento, o que equivale a aproximadamente 694 ms em 360 Hz.
+
+\subsection{Mapeamento de classes}
+Antes do treinamento do baseline cl\'assico, os s\'imbolos originais da MIT-BIH s\~ao filtrados para manter apenas r\'otulos de batimento e depois mapeados para o esquema AAMI:
+
+\begin{itemize}
+    \item \texttt{N}: batimentos normais e variantes pr\'oximas;
+    \item \texttt{S}: batimentos supraventriculares;
+    \item \texttt{V}: batimentos ventriculares;
+    \item \texttt{F}: fus\~ao;
+    \item \texttt{Q}: batimentos n\~ao classific\'aveis ou associados a marca\c{c}\~oes espec\'ificas.
+\end{itemize}
+
+Essa padroniza\c{c}\~ao \'e importante para comparabilidade com literatura e para reduzir a fragmenta\c{c}\~ao excessiva das classes.
+
+\subsection{Descritores extra\'idos}
+\subsubsection{Descritores morfol\'ogicos}
+Para cada janela de batimento, o projeto extrai atualmente cinco descritores morfol\'ogicos simples:
+
+\begin{itemize}
+    \item m\'edia;
+    \item desvio-padr\~ao;
+    \item valor m\'aximo;
+    \item valor m\'inimo;
+    \item amplitude pico-a-pico.
+\end{itemize}
+
+Esses atributos servem como baseline de baixa complexidade e oferecem uma representa\c{c}\~ao resumida da forma do batimento.
+
+\subsubsection{Descritores de din\^amica simb\'olica}
+O componente simb\'olico hoje implementado segue a seguinte l\'ogica:
+
+\begin{enumerate}[label=\arabic*.]
+    \item normaliza\c{c}\~ao do sinal por z-score;
+    \item parti\c{c}\~ao do intervalo normalizado em quatro bins;
+    \item simboliza\c{c}\~ao do sinal com base nesses bins;
+    \item forma\c{c}\~ao de palavras simb\'olicas de tamanho 3;
+    \item c\'alculo de entropia de Shannon e estat\'isticas derivadas.
+\end{enumerate}
+
+Os atributos simb\'olicos atualmente computados s\~ao:
+
+\begin{itemize}
+    \item entropia simb\'olica;
+    \item n\'umero de palavras distintas;
+    \item m\'edia dos s\'imbolos;
+    \item desvio-padr\~ao dos s\'imbolos.
+\end{itemize}
+
+Do ponto de vista cient\'ifico, essa representa\c{c}\~ao busca capturar padr\~oes de complexidade e organiza\c{c}\~ao do tra\c{c}ado para al\'em de estat\'isticas de amplitude.
+
+\subsubsection{Descritores RR}
+Para cada batimento, o projeto calcula:
+
+\begin{itemize}
+    \item \texttt{rr\_prev}: intervalo at\'e o batimento anterior;
+    \item \texttt{rr\_next}: intervalo at\'e o batimento seguinte.
+\end{itemize}
+
+Esses atributos incorporam contexto temporal local, que \'e relevante para discriminar arritmias mesmo quando a morfologia isolada do batimento n\~ao \'e suficiente.
+
+\subsection{Modelo baseline atual}
+O baseline mais consolidado do reposit\'orio utiliza um pipeline com:
+
+\begin{itemize}
+    \item padroniza\c{c}\~ao via \texttt{StandardScaler};
+    \item classificador \texttt{BalancedRandomForestClassifier} quando \texttt{imbalanced-learn} est\'a dispon\'ivel;
+    \item alternativa com \texttt{RandomForestClassifier} e pondera\c{c}\~ao de classes quando a depend\^encia n\~ao est\'a presente.
+\end{itemize}
+
+Foram definidos 300 estimadores, com \^enfase expl\'icita em lidar com desbalanceamento entre classes.
+
+\section{Protocolo de avalia\c{c}\~ao}
+\subsection{Split por registro}
+O pipeline adota separa\c{c}\~ao por registro, e n\~ao por batimento aleat\'orio. Essa escolha \'e metodologicamente importante porque reduz vazamento de informa\c{c}\~ao entre treino e teste, j\'a que batimentos do mesmo paciente ou registro tendem a compartilhar padr\~oes muito pr\'oximos.
+
+No c\'odigo atual, a divis\~ao est\'a parametrizada como:
+
+\begin{itemize}
+    \item treino: 70\%;
+    \item valida\c{c}\~ao: 15\%;
+    \item teste: 15\%.
+\end{itemize}
+
+Na rotina de treinamento do baseline cl\'assico, o desempenho reportado atualmente usa treino e teste por registro.
+
+\subsection{M\'etricas de classifica\c{c}\~ao}
+As m\'etricas atualmente computadas para o classificador s\~ao:
+
+\begin{itemize}
+    \item \textit{accuracy};
+    \item \textit{precision} macro;
+    \item \textit{recall} macro;
+    \item \textit{F1} macro;
+    \item matriz de confus\~ao.
+\end{itemize}
+
+O uso de m\'edias macro \'e especialmente relevante neste contexto, pois evita que classes majorit\'arias dominem completamente a leitura do desempenho.
+
+\subsection{M\'etricas para detec\c{c}\~ao de picos}
+Para a detec\c{c}\~ao de picos R, o projeto implementa pareamento entre picos detectados e picos anotados com toler\^ancia fixa. Dado um conjunto de verdade de refer\^encia e um conjunto de picos detectados, s\~ao computados:
+
+\begin{align}
+\text{Precision} &= \frac{TP}{TP + FP} \\
+\text{Recall} &= \frac{TP}{TP + FN} \\
+\text{F1} &= \frac{2 \cdot \text{Precision} \cdot \text{Recall}}{\text{Precision} + \text{Recall}}
+\end{align}
+
+Tamb\'em s\~ao calculados erro absoluto m\'edio e erro absoluto mediano, em amostras e em milissegundos, para os pares corretamente associados.
+
+\section{Estado experimental atual}
+\subsection{Resultados do baseline cl\'assico}
+O arquivo \texttt{reports/tables/classical\_ml\_metrics.json} registra, no estado atual do projeto, os seguintes valores:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lc}
+\toprule
+\textbf{M\'etrica} & \textbf{Valor} \\
+\midrule
+Accuracy & 0.7543 \\
+Precision macro & 0.3807 \\
+Recall macro & 0.3845 \\
+F1 macro & 0.3713 \\
+\bottomrule
+\end{tabular}
+\caption{Desempenho atual do baseline cl\'assico por batimento.}
+\end{table}
+
+Esses n\'umeros indicam que o classificador j\'a consegue capturar parte do padr\~ao global, mas ainda apresenta limita\c{c}\~oes importantes quando observado sob m\'etricas macro. Em outras palavras, o \textit{accuracy} isolado n\~ao descreve adequadamente o desempenho em classes minorit\'arias.
+
+\subsection{Resultados da avalia\c{c}\~ao de picos R}
+A nova rotina de avalia\c{c}\~ao da detec\c{c}\~ao de picos produziu os seguintes valores m\'edios globais, com toler\^ancia de 15 amostras:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lc}
+\toprule
+\textbf{M\'etrica} & \textbf{Valor} \\
+\midrule
+Precision & 0.9490 \\
+Recall & 0.9581 \\
+F1 & 0.9523 \\
+\bottomrule
+\end{tabular}
+\caption{M\'edias globais da detec\c{c}\~ao de picos R.}
+\end{table}
+
+Os registros com pior desempenho observado at\'e o momento foram:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lc}
+\toprule
+\textbf{Registro} & \textbf{F1} \\
+\midrule
+207 & 0.1546 \\
+108 & 0.7117 \\
+113 & 0.7753 \\
+\bottomrule
+\end{tabular}
+\caption{Registros mais cr\'iticos na detec\c{c}\~ao de picos R.}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../figures/rpeak_detection_metrics.png}
+\caption{Desempenho da detec\c{c}\~ao de picos R por registro.}
+\end{figure}
+
+Esse resultado sugere que o componente de detec\c{c}\~ao, em termos m\'edios, est\'a suficientemente est\'avel para sustentar an\'alises posteriores, mas h\'a registros espec\'ificos com comportamento patol\'ogico que precisam ser estudados individualmente.
+
+\section{Interpreta\c{c}\~ao metodol\'ogica do estado atual}
+At\'e o momento, o projeto j\'a estabeleceu uma base experimental coerente:
+
+\begin{itemize}
+    \item os dados foram reorganizados em pipeline reproduz\'ivel;
+    \item a extra\c{c}\~ao de features por batimento j\'a est\'a operacional;
+    \item o baseline cl\'assico j\'a fornece uma linha de compara\c{c}\~ao;
+    \item a detec\c{c}\~ao de picos passou a ser avaliada explicitamente, e n\~ao assumida como perfeita.
+\end{itemize}
+
+Esse ponto \'e importante para o artigo futuro: a qualidade da etapa de segmenta\c{c}\~ao n\~ao pode ser tratada como detalhe de implementa\c{c}\~ao, mas como parte da validade interna do estudo.
+
+\section{Limita\c{c}\~oes atuais}
+Apesar de a base t\'ecnica estar bem encaminhada, h\'a limita\c{c}\~oes claras no estado atual:
+
+\begin{itemize}
+    \item o conjunto de atributos morfol\'ogicos ainda \'e simples;
+    \item a etapa de split por registro ainda n\~ao explora valida\c{c}\~ao cruzada;
+    \item os resultados de LSTM e CNN/LSTM ainda n\~ao est\~ao consolidados;
+    \item a an\'alise dos registros problem\'aticos na detec\c{c}\~ao de picos ainda n\~ao foi formalizada;
+    \item ainda n\~ao h\'a se\c{c}\~ao de revis\~ao bibliogr\'afica nem compara\c{c}\~ao com trabalhos relacionados.
+\end{itemize}
+
+\section{Como este texto pode evoluir para artigo}
+O documento atual j\'a pode ser expandido para um manuscrito completo com a seguinte correspond\^encia:
+
+\begin{longtable}{p{0.32\textwidth} p{0.60\textwidth}}
+\toprule
+\textbf{Se\c{c}\~ao futura do artigo} & \textbf{Base j\'a existente neste documento} \\
+\midrule
+Introdu\c{c}\~ao & problema de pesquisa, motiva\c{c}\~ao e objetivo geral; \\
+Materiais e m\'etodos & base de dados, pipeline, features, modelo e m\'etricas; \\
+Resultados & tabelas atuais de desempenho e figura da detec\c{c}\~ao de picos; \\
+Discuss\~ao & interpreta\c{c}\~ao metodol\'ogica e limita\c{c}\~oes; \\
+Conclus\~ao & consolida\c{c}\~ao dos achados e pr\'oximos passos. \\
+\bottomrule
+\end{longtable}
+
+\section{Pr\'oximos passos recomendados}
+Para aproximar o projeto de um artigo cient\'ifico robusto, os pr\'oximos passos mais importantes s\~ao:
+
+\begin{enumerate}[label=\arabic*.]
+    \item investigar qualitativamente os registros com pior detec\c{c}\~ao de picos, em especial o registro 207;
+    \item expandir o conjunto de atributos morfol\'ogicos e temporais;
+    \item consolidar experimentos com modelos recorrentes;
+    \item acrescentar se\c{c}\~ao de trabalhos relacionados e justificar as escolhas metodol\'ogicas frente \`a literatura;
+    \item registrar protocolos experimentais compar\'aveis entre abordagens cl\'assicas e profundas.
+\end{enumerate}
+
+\section{Comandos de reprodu\c{c}\~ao}
+\subsection{Ambiente}
+\begin{verbatim}
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+\end{verbatim}
+
+\subsection{Pipeline principal}
+\begin{verbatim}
+python scripts/make_dataset.py
+python scripts/preprocess_mitbih.py
+python scripts/extract_symbolic_features.py
+python scripts/train_classical_ml.py
+\end{verbatim}
+
+\subsection{Avalia\c{c}\~ao da detec\c{c}\~ao de picos}
+\begin{verbatim}
+MPLCONFIGDIR=/tmp/matplotlib .venv/bin/python scripts/evaluate_rpeak_detection.py
+\end{verbatim}
+
+\subsection{Testes}
+\begin{verbatim}
+pytest -q
+\end{verbatim}
+
+\subsection{Compila\c{c}\~ao deste documento}
+\begin{verbatim}
+cd reports/manuscript
+pdflatex project_report.tex
+pdflatex project_report.tex
+\end{verbatim}
+
+\end{document}

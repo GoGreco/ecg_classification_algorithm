@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+*.pyc
+*.pyo
+*.pyd
+*.DS_Store
+
+data/processed/
+reports/figures/
+reports/tables/
+experiments/*/artifacts/
+experiments/*/logs/
