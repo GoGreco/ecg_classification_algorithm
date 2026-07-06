@@ -16,9 +16,15 @@ from ecg_classification.preprocessing.baseline import remove_baseline_wander
 from ecg_classification.preprocessing.filtering import clean_ecg
 
 
-def preprocess_record(record_csv: Path, sampling_rate: int) -> pd.DataFrame:
+def select_preprocessing_lead(frame: pd.DataFrame, preferred_lead: str = "MLII") -> str:
+    if preferred_lead in frame.columns:
+        return preferred_lead
+    return str(frame.columns[0])
+
+
+def preprocess_record(record_csv: Path, sampling_rate: int, preferred_lead: str = "MLII") -> pd.DataFrame:
     frame = pd.read_csv(record_csv)
-    lead = frame.columns[0]
+    lead = select_preprocessing_lead(frame, preferred_lead=preferred_lead)
     cleaned = clean_ecg(frame[lead].to_numpy(), sampling_rate=sampling_rate)
     corrected, baseline = remove_baseline_wander(cleaned, sampling_rate=sampling_rate)
     return pd.DataFrame(
@@ -36,7 +42,11 @@ def main() -> None:
     config = ExperimentConfig()
     paths.data_processed.mkdir(parents=True, exist_ok=True)
     for record_csv in sorted(paths.data_interim.glob("*_record.csv")):
-        processed = preprocess_record(record_csv, sampling_rate=config.sampling_rate)
+        processed = preprocess_record(
+            record_csv,
+            sampling_rate=config.sampling_rate,
+            preferred_lead=config.default_lead,
+        )
         processed.to_csv(paths.data_processed / f"{record_csv.stem}_processed.csv", index=False)
     print("Processed signals saved to data/processed.")
 

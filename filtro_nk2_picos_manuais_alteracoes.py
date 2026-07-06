@@ -26,11 +26,11 @@ def main() -> None:
 
     paths = ProjectPaths()
     config = ExperimentConfig()
-    record_csv = paths.data_interim / "103_record.csv"
-    annotation_csv = paths.data_interim / "103_annotation.csv"
+    record_csv = paths.data_interim / "200_record.csv"
+    annotation_csv = paths.data_interim / "200_annotation.csv"
 
     frame = pd.read_csv(record_csv)
-    lead = "V5" if "V5" in frame.columns else frame.columns[min(1, len(frame.columns) - 1)]
+    lead = "MLII" if "MLII" in frame.columns else frame.columns[min(1, len(frame.columns) - 1)]
     ecg_signal = frame[lead].to_numpy()
 
     annotation_frame = pd.read_csv(annotation_csv)
@@ -44,6 +44,7 @@ def main() -> None:
     ends = waves.get("ECG_T_Offsets", [])
 
     time = np.arange(len(ecg_smoothed)) / config.sampling_rate
+
     plt.figure(figsize=(20, 8))
     plt.plot(time, ecg_smoothed, label="Smoothed Signal", color="black", alpha=0.7)
 

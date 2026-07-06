@@ -3,6 +3,23 @@ import glob
 import pandas as pd
 import matplotlib.pyplot as plt
 
+PREFERRED_LEAD = "MLII"
+
+
+def select_plot_lead(frame, preferred_lead=PREFERRED_LEAD):
+    if preferred_lead in frame.columns:
+        return preferred_lead
+    return frame.columns[0]
+
+
+def select_processed_signal_column(frame):
+    if "baseline_corrected" in frame.columns:
+        return "baseline_corrected"
+    if "cleaned" in frame.columns:
+        return "cleaned"
+    return frame.columns[0]
+
+
 def generate_comparison_plots():
     interim_dir = os.path.join("data", "interim", "signal_tables")
     processed_dir = os.path.join("data", "processed")
@@ -40,16 +57,16 @@ def generate_comparison_plots():
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
         fig.suptitle(f"Sinal do Paciente: {patient_num}", fontsize=16, fontweight='bold')
 
-        col_sinal_unproc = df_unprocessed.columns[1] if len(df_unprocessed.columns) > 1 else df_unprocessed.columns[0]
-        col_sinal_proc = df_processed.columns[1] if len(df_processed.columns) > 1 else df_processed.columns[0]
+        col_sinal_unproc = select_plot_lead(df_unprocessed)
+        col_sinal_proc = select_processed_signal_column(df_processed)
 
         ax1.plot(df_unproc_slice[col_sinal_unproc], color='tab:blue', linewidth=1.0)
-        ax1.set_title(f"Sinal Não Processado ({filename})", fontsize=12)
+        ax1.set_title(f"Sinal Não Processado ({filename}, derivação {col_sinal_unproc})", fontsize=12)
         ax1.set_ylabel("Amplitude")
         ax1.grid(True, linestyle='--', alpha=0.6)
 
         ax2.plot(df_proc_slice[col_sinal_proc], color='tab:orange', linewidth=1.0)
-        ax2.set_title(f"Sinal Processado ({processed_filename})", fontsize=12)
+        ax2.set_title(f"Sinal Processado ({processed_filename}, {col_sinal_proc})", fontsize=12)
         ax2.set_ylabel("Amplitude")
         ax2.set_xlabel("Amostras (Índice)")
         ax2.grid(True, linestyle='--', alpha=0.6)
