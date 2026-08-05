@@ -7,3 +7,4 @@ PyWavelets==1.8.0
 scikit-learn==1.7.1
 scipy==1.16.1
 wfdb==4.3.0
+tensorflow
